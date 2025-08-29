@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import timedelta
 import os
 
 load_dotenv(".env")
@@ -120,9 +121,64 @@ REST_FRAMEWORK = {
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
     ],
+    "DEFAULT_AUTHENTICATION_CLASSES" : [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10
 }
+
+# JWT Configuration
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME" : timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME" : timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS" : False,  # Disabilita per evitare conflitti con UUID
+    "BLACKLIST_AFTER_ROTATION" : False,  # Disabilita per evitare conflitti con UUID
+    "UPDATE_LAST_LOGIN" : False,
+    "ALGORITHM" : "HS256",
+    "SIGNING_KEY" : os.getenv("SECRET_KEY"),
+    "VERIFYING_KEY" : None,
+    "AUDIENCE" : None,
+    "ISSUER" : None,
+    "JWK_URL" : None,
+    "LEEWAY" : 0,
+    "AUTH_HEADER_TYPES" : ("Bearer",),
+    "AUTH_HEADER_NAME" : "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD" : "id",
+    "USER_ID_CLAIM" : "user_id",
+    "USER_AUTHENTICATION_RULE" : "rest_framework_simplejwt.authentication.default_user_authentication_rule",
+    "AUTH_TOKEN_CLASSES" : ("rest_framework_simplejwt.tokens.AccessToken",),
+    "TOKEN_TYPE_CLAIM" : "token_type",
+    "TOKEN_USER_CLASS" : "rest_framework_simplejwt.models.TokenUser",
+    "JTI_CLAIM" : "jti",
+    "SLIDING_TOKEN_REFRESH_EXP_CLAIM" : "refresh_exp",
+    "SLIDING_TOKEN_LIFETIME" : timedelta(minutes=60),
+    "SLIDING_TOKEN_REFRESH_LIFETIME" : timedelta(days=7),
+}
+
+# Redis Configuration
+
+CACHES = {
+    "default" : {
+        "BACKEND" : "django_redis.cache.RedisCache",
+        "LOCATION" : os.getenv("REDIS_URL", f"redis://:{os.getenv('REDIS_PASSWORD', '')}@127.0.0.1:{os.getenv('REDIS_PORT', '6379')}/0"),
+        "OPTIONS" : {
+            "CLIENT_CLASS" : "django_redis.client.DefaultClient",
+            "CONNECTION_POOL_KWARGS" : {
+                "max_connections" : 50,
+                "retry_on_timeout" : True,
+            },
+            "SERIALIZER" : "django_redis.serializers.json.JSONSerializer",
+            "PASSWORD" : os.getenv("REDIS_PASSWORD"),
+        },
+        "KEY_PREFIX" : "django_cache",
+        "TIMEOUT" : 300,  # 5 minuti default
+    }
+}
+
+# Session configuration with Redis
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
 
 
 # Internationalization

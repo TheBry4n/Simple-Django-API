@@ -41,7 +41,14 @@ def login(request, service, serializer):
     if not result.is_success:
         return Response(result.get_error(), status=status.HTTP_400_BAD_REQUEST)
 
-    return Response({"message": "Login successful"}, status=status.HTTP_200_OK)
+    login_data = result.get_data()
+
+    return Response({
+        "message" : "Login successful",
+        "access_token" : login_data["access_token"],
+        "refresh_token" : login_data["refresh_token"],
+        "user" : login_data["user"],
+    }, status=status.HTTP_200_OK)
 
 
 
