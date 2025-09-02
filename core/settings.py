@@ -14,6 +14,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
 import os
+import sys
 
 load_dotenv(".env")
 
@@ -79,19 +80,72 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv("SUPABASE_DB_NAME"),
-        'USER': os.getenv("SUPABASE_DB_USER"),
-        'PASSWORD': os.getenv("SUPABASE_DB_PASSWORD"),
-        'HOST': os.getenv("SUPABASE_DB_HOST"),
-        'PORT': os.getenv("SUPABASE_DB_PORT"),
-        'OPTIONS': {
-            'sslmode': 'disable', # Disable in local
+# Test conditions for settings
+if "test" in sys.argv:
+    # Configurazione hardcoded per test (più affidabile)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'test_db',
+            'USER': 'test_user',
+            'PASSWORD': 'test_password',
+            'HOST': 'localhost',
+            'PORT': '5433',
+            'OPTIONS': {
+                'sslmode': 'disable',
+            }
         }
     }
-}
+    
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': 'redis://localhost:6380/0',
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            }
+        }
+    }
+    
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': True,
+    }
+else:
+
+    # Production database configuration
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv("SUPABASE_DB_NAME"),
+            'USER': os.getenv("SUPABASE_DB_USER"),
+            'PASSWORD': os.getenv("SUPABASE_DB_PASSWORD"),
+            'HOST': os.getenv("SUPABASE_DB_HOST"),
+            'PORT': os.getenv("SUPABASE_DB_PORT"),
+            'OPTIONS': {
+                'sslmode': 'disable', # Disable in local
+            }
+        }
+    }
+
+    # Production redis configuration
+    CACHES = {
+        "default" : {
+            "BACKEND" : "django_redis.cache.RedisCache",
+            "LOCATION" : os.getenv("REDIS_URL", f"redis://:{os.getenv('REDIS_PASSWORD', '')}@127.0.0.1:{os.getenv('REDIS_PORT', '6379')}/0"),
+            "OPTIONS" : {
+                "CLIENT_CLASS" : "django_redis.client.DefaultClient",
+                "CONNECTION_POOL_KWARGS" : {
+                    "max_connections" : 50,
+                    "retry_on_timeout" : True,
+                },
+                "SERIALIZER" : "django_redis.serializers.json.JSONSerializer",
+                "PASSWORD" : os.getenv("REDIS_PASSWORD"),
+            },
+            "KEY_PREFIX" : "django_cache",
+            "TIMEOUT" : 300,  # 5 minuti default
+        }
+    }
 
 
 # Password validation
@@ -132,8 +186,8 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME" : timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME" : timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS" : False,  # Disabilita per evitare conflitti con UUID
-    "BLACKLIST_AFTER_ROTATION" : False,  # Disabilita per evitare conflitti con UUID
+    "ROTATE_REFRESH_TOKENS" : True,  # Abilita per generare nuovi refresh token
+    "BLACKLIST_AFTER_ROTATION" : True,  # Abilita per invalidare i vecchi token
     "UPDATE_LAST_LOGIN" : False,
     "ALGORITHM" : "HS256",
     "SIGNING_KEY" : os.getenv("SECRET_KEY"),
@@ -154,26 +208,6 @@ SIMPLE_JWT = {
     "SLIDING_TOKEN_REFRESH_EXP_CLAIM" : "refresh_exp",
     "SLIDING_TOKEN_LIFETIME" : timedelta(minutes=60),
     "SLIDING_TOKEN_REFRESH_LIFETIME" : timedelta(days=7),
-}
-
-# Redis Configuration
-
-CACHES = {
-    "default" : {
-        "BACKEND" : "django_redis.cache.RedisCache",
-        "LOCATION" : os.getenv("REDIS_URL", f"redis://:{os.getenv('REDIS_PASSWORD', '')}@127.0.0.1:{os.getenv('REDIS_PORT', '6379')}/0"),
-        "OPTIONS" : {
-            "CLIENT_CLASS" : "django_redis.client.DefaultClient",
-            "CONNECTION_POOL_KWARGS" : {
-                "max_connections" : 50,
-                "retry_on_timeout" : True,
-            },
-            "SERIALIZER" : "django_redis.serializers.json.JSONSerializer",
-            "PASSWORD" : os.getenv("REDIS_PASSWORD"),
-        },
-        "KEY_PREFIX" : "django_cache",
-        "TIMEOUT" : 300,  # 5 minuti default
-    }
 }
 
 # Session configuration with Redis

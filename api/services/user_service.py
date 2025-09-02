@@ -90,21 +90,50 @@ class UserService:
         """
 
         try:
+            logger.info(f"Starting refresh token process for token: {refresh_token[:20]}...")
+            
+            # Prima verifica se il token è già blacklisted
+            blacklist_check = self.redis_service.is_token_blacklisted(refresh_token)
+            logger.info(f"Blacklist check result: {blacklist_check}")
+            
+            if blacklist_check.is_success and blacklist_check.data:
+                logger.warning(f"Refresh token already blacklisted")
+                return Result.error("Refresh token has been revoked")
+            
+            logger.info("Token not blacklisted, proceeding with refresh...")
+            
             refresh = RefreshToken(refresh_token)
             user_id = refresh.payload.get("user_id")
+            
+            logger.info(f"Refresh token payload: {refresh.payload}")
+            logger.info(f"User ID from token: {user_id}")
             
             if not user_id:
                 return Result.error("Invalid refresh token")
             
             # Genera nuovo access token
             new_access_token = str(refresh.access_token)
-            new_refresh_token = str(refresh)
+            
+            # Genera un NUOVO refresh token
+            new_refresh = RefreshToken()
+            new_refresh['user_id'] = user_id
+            new_refresh['exp'] = refresh.payload.get('exp')  # Mantieni la stessa scadenza
+            new_refresh_token = str(new_refresh)
+            
+            # INVALIDATE il vecchio refresh token in Redis
+            old_refresh_blacklist = self.redis_service.blacklist_token(
+                refresh_token, 
+                expires_in=604800  # 7 giorni (7 * 24 * 60 * 60 = 604800 secondi)
+            )
+            
+            if not old_refresh_blacklist.is_success:
+                logger.warning(f"Failed to blacklist old refresh token for user {user_id}")
             
             # Salva i nuovi token in Redis
             token_data = {
                 "access_token" : new_access_token,
                 "refresh_token" : new_refresh_token,
-                "user_id" : str(user_id),  # Converti UUID in stringa
+                "user_id" : str(user_id),
                 "updated_at" : str(refresh.current_time),
             }
 

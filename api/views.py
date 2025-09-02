@@ -50,7 +50,30 @@ def login(request, service, serializer):
         "user" : login_data["user"],
     }, status=status.HTTP_200_OK)
 
+@api_view(["POST"])
+@service_injector(UserService)
+def refresh_token(request, service):
+    refresh_token = request.data.get("refresh_token")
+    if not refresh_token:
+        return Response({"message": "Refresh token is required"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    result = service.refresh_token(refresh_token)
+    if not result.is_success:
+        error_message = result.get_error()
+        
+        # Se il token è revocato, restituisci 401 invece di 400
+        if "revoked" in error_message.lower():
+            return Response({"message": error_message}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        return Response({"message": error_message}, status=status.HTTP_400_BAD_REQUEST)
+    
+    token_data = result.get_data()
+    return Response({
+        **token_data,
+        "status" : status.HTTP_200_OK,
+    })
 
 
 
-__all__ = ["user_list", "account_create", "login"]
+
+__all__ = ["user_list", "account_create", "login", "refresh_token"]
