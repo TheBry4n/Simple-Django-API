@@ -11,6 +11,12 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from dotenv import load_dotenv
+from datetime import timedelta
+import os
+import sys
+
+load_dotenv(".env")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,7 +26,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-^+*a9ouj^_70f71=yflkplwxio$wh^mz#8!w3!v1z9xb7rnm9l'
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -37,6 +43,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'api',
 ]
 
 MIDDLEWARE = [
@@ -72,12 +80,72 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Test conditions for settings
+if "test" in sys.argv:
+    # Hardcoded configuration for tests (more reliable)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'test_db',
+            'USER': 'test_user',
+            'PASSWORD': 'test_password',
+            'HOST': 'localhost',
+            'PORT': '5433',
+            'OPTIONS': {
+                'sslmode': 'disable',
+            }
+        }
     }
-}
+    
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': 'redis://localhost:6380/0',
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            }
+        }
+    }
+    
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': True,
+    }
+else:
+
+    # Production database configuration
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv("SUPABASE_DB_NAME"),
+            'USER': os.getenv("SUPABASE_DB_USER"),
+            'PASSWORD': os.getenv("SUPABASE_DB_PASSWORD"),
+            'HOST': os.getenv("SUPABASE_DB_HOST"),
+            'PORT': os.getenv("SUPABASE_DB_PORT"),
+            'OPTIONS': {
+                'sslmode': 'disable', # Disable SSL for local development
+            }
+        }
+    }
+
+    # Production redis configuration
+    CACHES = {
+        "default" : {
+            "BACKEND" : "django_redis.cache.RedisCache",
+            "LOCATION" : os.getenv("REDIS_URL", f"redis://:{os.getenv('REDIS_PASSWORD', '')}@127.0.0.1:{os.getenv('REDIS_PORT', '6379')}/0"),
+            "OPTIONS" : {
+                "CLIENT_CLASS" : "django_redis.client.DefaultClient",
+                "CONNECTION_POOL_KWARGS" : {
+                    "max_connections" : 50,
+                    "retry_on_timeout" : True,
+                },
+                "SERIALIZER" : "django_redis.serializers.json.JSONSerializer",
+                "PASSWORD" : os.getenv("REDIS_PASSWORD"),
+            },
+            "KEY_PREFIX" : "django_cache",
+            "TIMEOUT" : 300,  # 5 minutes default cache timeout
+        }
+    }
 
 
 # Password validation
@@ -97,6 +165,54 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+# Add REST Framework settings
+REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',  # Adds web interface for API testing
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+    ],
+    "DEFAULT_AUTHENTICATION_CLASSES" : [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10
+}
+
+# JWT Configuration
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME" : timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME" : timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS" : True,  # Enable to generate new refresh tokens
+    "BLACKLIST_AFTER_ROTATION" : True,  # Enable to invalidate old tokens
+    "UPDATE_LAST_LOGIN" : False,
+    "ALGORITHM" : "HS256",
+    "SIGNING_KEY" : os.getenv("SECRET_KEY"),
+    "VERIFYING_KEY" : None,
+    "AUDIENCE" : None,
+    "ISSUER" : None,
+    "JWK_URL" : None,
+    "LEEWAY" : 0,
+    "AUTH_HEADER_TYPES" : ("Bearer",),
+    "AUTH_HEADER_NAME" : "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD" : "id",
+    "USER_ID_CLAIM" : "user_id",
+    "USER_AUTHENTICATION_RULE" : "rest_framework_simplejwt.authentication.default_user_authentication_rule",
+    "AUTH_TOKEN_CLASSES" : ("rest_framework_simplejwt.tokens.AccessToken",),
+    "TOKEN_TYPE_CLAIM" : "token_type",
+    "TOKEN_USER_CLASS" : "rest_framework_simplejwt.models.TokenUser",
+    "JTI_CLAIM" : "jti",
+    "SLIDING_TOKEN_REFRESH_EXP_CLAIM" : "refresh_exp",
+    "SLIDING_TOKEN_LIFETIME" : timedelta(minutes=60),
+    "SLIDING_TOKEN_REFRESH_LIFETIME" : timedelta(days=7),
+}
+
+# Session configuration with Redis
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
 
 
 # Internationalization

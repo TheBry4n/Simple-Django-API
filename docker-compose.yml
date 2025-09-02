@@ -1,0 +1,79 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: supabase_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${SUPABASE_DB_NAME}
+      POSTGRES_USER: ${SUPABASE_DB_USER}
+      POSTGRES_PASSWORD: ${SUPABASE_DB_PASSWORD}
+      POSTGRES_HOST: ${SUPABASE_DB_HOST}
+    ports:
+      - "${SUPABASE_DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - supabase_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis_django
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - supabase_network
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  studio:
+    image: supabase/studio:latest
+    container_name: supabase_studio
+    restart: unless-stopped
+    environment:
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_PASSWORD: ${SUPABASE_DB_PASSWORD}
+      DEFAULT_ORGANIZATION_NAME: Default Organization
+      DEFAULT_PROJECT_NAME: Default Project
+    ports:
+      - "3000:3000"
+    networks:
+      - supabase_network
+    depends_on:
+      - postgres
+      - meta
+  
+  meta:
+    image: supabase/postgres-meta:v0.91.5
+    container_name: supabase_meta
+    restart: unless-stopped
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: postgres
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: ${SUPABASE_DB_NAME}
+      PG_META_DB_USER: ${SUPABASE_DB_USER}
+      PG_META_DB_PASSWORD: ${SUPABASE_DB_PASSWORD}
+    ports:
+      - "8080:8080"
+    networks:
+      - supabase_network
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  supabase_network:
+    driver: bridge
+
