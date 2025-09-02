@@ -41,12 +41,12 @@ class RedisService:
     
     def blacklist_token(self, token: str, expires_in: int = 86400) -> Result[bool] :
         try:
-            # Prova prima con AccessToken, poi con RefreshToken
+            # Try first with AccessToken, then with RefreshToken
             try:
                 token_obj = AccessToken(token)
                 exp_timestamp = token_obj.payload.get("exp", 0)
             except TokenError:
-                # Se non è un access token, prova con refresh token
+                # If it's not an access token, try with refresh token
                 from rest_framework_simplejwt.tokens import RefreshToken
                 token_obj = RefreshToken(token)
                 exp_timestamp = token_obj.payload.get("exp", 0)

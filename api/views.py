@@ -61,7 +61,7 @@ def refresh_token(request, service):
     if not result.is_success:
         error_message = result.get_error()
         
-        # Se il token è revocato, restituisci 401 invece di 400
+        # If the token is revoked, return 401 instead of 400
         if "revoked" in error_message.lower():
             return Response({"message": error_message}, status=status.HTTP_401_UNAUTHORIZED)
         

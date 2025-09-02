@@ -82,7 +82,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 # Test conditions for settings
 if "test" in sys.argv:
-    # Configurazione hardcoded per test (più affidabile)
+    # Hardcoded configuration for tests (more reliable)
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -123,7 +123,7 @@ else:
             'HOST': os.getenv("SUPABASE_DB_HOST"),
             'PORT': os.getenv("SUPABASE_DB_PORT"),
             'OPTIONS': {
-                'sslmode': 'disable', # Disable in local
+                'sslmode': 'disable', # Disable SSL for local development
             }
         }
     }
@@ -143,7 +143,7 @@ else:
                 "PASSWORD" : os.getenv("REDIS_PASSWORD"),
             },
             "KEY_PREFIX" : "django_cache",
-            "TIMEOUT" : 300,  # 5 minuti default
+            "TIMEOUT" : 300,  # 5 minutes default cache timeout
         }
     }
 
@@ -170,7 +170,7 @@ AUTH_PASSWORD_VALIDATORS = [
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',  # Aggiunge l'interfaccia web
+        'rest_framework.renderers.BrowsableAPIRenderer',  # Adds web interface for API testing
     ],
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
@@ -186,8 +186,8 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME" : timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME" : timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS" : True,  # Abilita per generare nuovi refresh token
-    "BLACKLIST_AFTER_ROTATION" : True,  # Abilita per invalidare i vecchi token
+    "ROTATE_REFRESH_TOKENS" : True,  # Enable to generate new refresh tokens
+    "BLACKLIST_AFTER_ROTATION" : True,  # Enable to invalidate old tokens
     "UPDATE_LAST_LOGIN" : False,
     "ALGORITHM" : "HS256",
     "SIGNING_KEY" : os.getenv("SECRET_KEY"),
