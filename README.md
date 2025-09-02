@@ -21,13 +21,13 @@ A modern, production-ready Django REST API featuring JWT authentication, Redis c
 - **Redis Integration** for session and token management
 - **User Session Caching** with configurable TTL
 - **Token Storage** with automatic cleanup
-- **Connection Pooling** for optimal performance
+- **Basic Connection Pooling** for database connections
 
 ### Development & Testing
 - **Docker Support** for consistent development environment
-- **Comprehensive Test Suite** with pytest
-- **Environment-based Configuration** (development, testing, production)
-- **Logging** with structured error tracking
+- **Basic Test Suite** with Django test framework
+- **Environment-based Configuration** (development, testing)
+- **Basic Logging** with error tracking
 
 ## 🏗️ Project Structure
 
@@ -57,7 +57,7 @@ API_django/
 - **Cache**: Redis
 - **Authentication**: JWT (djangorestframework-simplejwt)
 - **Containerization**: Docker & Docker Compose
-- **Testing**: pytest
+- **Testing**: Django test framework
 - **Python**: 3.13+
 
 ## 📋 Prerequisites
@@ -65,6 +65,8 @@ API_django/
 - Python 3.13+
 - Docker & Docker Compose
 - Git
+- PostgreSQL (if running locally)
+- Redis (if running locally)
 
 ## 🚀 Quick Start
 
@@ -135,17 +137,14 @@ docker-compose exec web python manage.py createsuperuser
 
 #### Run All Tests
 ```bash
-# Option 1: Using the provided script
+# Option 1: Using the provided script (TESTED AND WORKING)
 ./run_tests.sh
 
-# Option 2: Using pytest directly
-pytest
-
-# Option 3: Using Django test command
+# Option 2: Using Django test command (TESTED AND WORKING)
 python manage.py test
 ```
 
-#### Run Tests with Docker (Recommended)
+#### Run Tests with Docker (TESTED AND WORKING)
 ```bash
 # Run tests in isolated Docker environment
 docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit
@@ -154,25 +153,9 @@ docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit
 docker-compose -f docker-compose.test.yml logs web
 ```
 
-#### Run Specific Test Categories
-```bash
-# Run only authentication tests
-pytest api/tests.py::TestAuthentication
+**Note**: The test environment uses separate ports (PostgreSQL: 5433, Redis: 6380) to avoid conflicts with development services.
 
-# Run only service layer tests
-pytest api/tests.py::TestUserService
-
-# Run only Redis service tests
-pytest api/tests.py::TestRedisService
-
-# Run with verbose output
-pytest -v
-
-# Run with coverage report
-pytest --cov=api --cov-report=html
-```
-
-### 🧪 **Manual API Testing**
+### 🧪 **Manual API Testing (THEORETICALLY WORKING)**
 
 #### 1. **Test User Registration**
 ```bash
@@ -239,7 +222,9 @@ curl -X POST http://localhost:8000/api/refresh-token/ \
   }'
 ```
 
-### 🧪 **Testing with Postman/Insomnia**
+**Note**: These curl commands are theoretically correct based on the API implementation, but manual testing with curl has not been performed. The automated tests confirm the API endpoints work correctly.
+
+### 🧪 **Testing with Postman/Insomnia (THEORETICALLY WORKING)**
 
 #### Import this collection:
 ```json
@@ -287,7 +272,9 @@ curl -X POST http://localhost:8000/api/refresh-token/ \
 }
 ```
 
-### 🧪 **Testing Redis Operations**
+**Note**: This Postman collection is provided as a reference but has not been tested. The API endpoints work as confirmed by automated tests.
+
+### 🧪 **Testing Redis Operations (BASIC COMMANDS TESTED)**
 
 #### Check Redis Connection
 ```bash
@@ -305,15 +292,9 @@ PONG
 127.0.0.1:6379> exit
 ```
 
-#### Monitor Redis Operations
-```bash
-# Watch Redis operations in real-time
-docker-compose exec redis redis-cli monitor
+**Note**: Basic Redis operations have been tested. Advanced Redis features (monitoring, memory optimization) have not been tested.
 
-# In another terminal, make API calls to see Redis operations
-```
-
-### 🧪 **Database Testing**
+### 🧪 **Database Testing (BASIC COMMANDS TESTED)**
 
 #### Check Database Connection
 ```bash
@@ -330,29 +311,9 @@ SELECT * FROM api_user;
 \q
 ```
 
-#### Reset Test Database
-```bash
-# Drop and recreate test database
-docker-compose exec db psql -U test_user -d test_db -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+**Note**: Basic database operations have been tested. Advanced database features (performance optimization, query analysis) have not been tested.
 
-# Run migrations again
-docker-compose exec web python manage.py migrate
-```
-
-### 🧪 **Performance Testing**
-
-#### Load Testing with Apache Bench
-```bash
-# Install Apache Bench (if not available)
-# Ubuntu/Debian: sudo apt-get install apache2-utils
-# macOS: brew install httpd
-
-# Test registration endpoint
-ab -n 100 -c 10 -p test_data.json -T application/json http://localhost:8000/api/account/create/
-
-# Test login endpoint
-ab -n 100 -c 10 -p login_data.json -T application/json http://localhost:8000/api/login/
-```
+### 🧪 **Basic Docker Monitoring (TESTED)**
 
 #### Memory and CPU Monitoring
 ```bash
@@ -363,70 +324,20 @@ docker stats
 docker stats web redis db
 ```
 
-### 🧪 **Security Testing**
-
-#### Test Invalid Tokens
-```bash
-# Test with expired token
-curl -X GET http://localhost:8000/api/users/ \
-  -H "Authorization: Bearer expired_token_here"
-
-# Test with malformed token
-curl -X GET http://localhost:8000/api/users/ \
-  -H "Authorization: Bearer invalid_token"
-
-# Test without token
-curl -X GET http://localhost:8000/api/users/
-```
-
-#### Test Token Blacklisting
-```bash
-# Login to get tokens
-LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8000/api/login/ \
-  -H "Content-Type: application/json" \
-  -d '{"username": "testuser", "password": "securepassword123"}')
-
-# Extract access token
-ACCESS_TOKEN=$(echo $LOGIN_RESPONSE | jq -r '.access_token')
-
-# Use token
-curl -X GET http://localhost:8000/api/users/ \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
-
-# Check if token is blacklisted in Redis
-docker-compose exec redis redis-cli KEYS "*blacklist*"
-```
-
-### 🧪 **Test Coverage Report**
-
-After running tests with coverage:
-```bash
-# Generate HTML coverage report
-pytest --cov=api --cov-report=html
-
-# Open coverage report
-open htmlcov/index.html  # macOS
-xdg-open htmlcov/index.html  # Linux
-start htmlcov/index.html  # Windows
-```
-
-### 🧪 **Continuous Integration Testing**
-
-The project is ready for CI/CD with:
-- **GitHub Actions**: Use the provided workflow files
-- **GitLab CI**: Compatible with GitLab CI/CD
-- **Jenkins**: Can be integrated with Jenkins pipelines
+**Note**: Basic Docker monitoring commands have been tested. Advanced Docker operations (cleanup, optimization) have not been tested.
 
 **Test Results Summary:**
-- ✅ **Unit Tests**: Service layer, repository pattern
-- ✅ **Integration Tests**: API endpoints, database operations
-- ✅ **Security Tests**: JWT validation, token blacklisting
-- ✅ **Performance Tests**: Redis caching, database queries
-- ✅ **Manual Tests**: Complete API workflow testing
+- ✅ **Automated Tests**: User registration, login, token refresh (TESTED AND WORKING)
+- ✅ **Docker Test Environment**: Isolated testing with separate ports (TESTED AND WORKING)
+- ✅ **Basic Redis Operations**: Connection and basic commands (TESTED)
+- ✅ **Basic Database Operations**: Connection and table queries (TESTED)
+- ✅ **Manual API Testing**: Registration and login endpoints (THEORETICALLY WORKING - based on automated tests)
+- ⚠️ **Advanced Testing**: Performance testing, security testing, coverage reports (NOT TESTED)
+- ⚠️ **Production Features**: HTTPS, advanced security, monitoring (NOT TESTED)
 
 ## 📚 API Endpoints
 
-### Authentication Endpoints
+### Authentication Endpoints (IMPLEMENTED AND TESTED)
 
 #### User Registration
 ```http
@@ -458,7 +369,7 @@ Content-Type: application/json
     "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
     "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
     "user": {
-        "id": 1,
+        "id": "uuid-here",
         "username": "testuser",
         "email": "test@example.com"
     }
@@ -480,6 +391,8 @@ Content-Type: application/json
 GET /api/users/
 Authorization: Bearer <access_token>
 ```
+
+**Note**: All endpoints above are implemented, tested, and working. The API uses UUIDs for user IDs, not integers.
 
 ## 🔧 Configuration
 
@@ -508,15 +421,7 @@ DEBUG=True
 
 ### Environment Setup for Different Scenarios
 
-#### **Local Development (No Docker)**
-```env
-# Use local PostgreSQL and Redis
-SUPABASE_DB_HOST=localhost
-SUPABASE_DB_PORT=5432
-REDIS_URL=redis://localhost:6379
-```
-
-#### **Docker Development (Recommended)**
+#### **Docker Development (TESTED AND WORKING)**
 ```env
 # Use Docker service names
 SUPABASE_DB_HOST=db
@@ -524,7 +429,15 @@ SUPABASE_DB_PORT=5432
 REDIS_URL=redis://redis:6379
 ```
 
-#### **Production Environment**
+#### **Local Development (NOT TESTED)**
+```env
+# Use local PostgreSQL and Redis
+SUPABASE_DB_HOST=localhost
+SUPABASE_DB_PORT=5432
+REDIS_URL=redis://localhost:6379
+```
+
+#### **Production Environment (NOT TESTED)**
 ```env
 # Use production database and Redis
 SUPABASE_DB_HOST=your-production-db.com
@@ -536,8 +449,8 @@ DEBUG=False
 ### Docker Configuration
 The project includes two Docker Compose configurations:
 
-- **`docker-compose.yml`**: Development environment
-- **`docker-compose.test.yml`**: Testing environment with isolated services
+- **`docker-compose.yml`**: Development environment (TESTED AND WORKING)
+- **`docker-compose.test.yml`**: Testing environment with isolated services (TESTED AND WORKING)
 
 ## 🏗️ Architecture Details
 
@@ -584,24 +497,26 @@ class Result:
         self.error = error
 ```
 
+**Note**: All architecture patterns shown above are implemented and tested in the codebase.
+
 ## 🔒 Security Features
 
 - **JWT Token Expiration**: Configurable token lifetimes
 - **Token Blacklisting**: Secure logout and token revocation
 - **Password Validation**: Django's built-in security validators
-- **Redis Security**: Password-protected Redis instances
-- **HTTPS Ready**: Configured for production security
+- **Basic Redis Security**: Redis instance configuration
+- **Development Security**: Basic security measures implemented
 
 ## 📊 Performance Features
 
 - **Redis Caching**: User sessions and token storage
-- **Connection Pooling**: Optimized database connections
-- **Efficient Queries**: Repository pattern for query optimization
-- **Background Tasks**: Redis-based task queue ready
+- **Basic Connection Pooling**: Database connection optimization
+- **Repository Pattern**: Clean data access abstraction
+- **Token Management**: Efficient JWT token handling
 
 ## 🚀 Deployment
 
-### Production Considerations
+### Production Considerations (NOT TESTED)
 1. Set `DEBUG=False` in production
 2. Use environment variables for sensitive data
 3. Configure proper logging
@@ -609,7 +524,7 @@ class Result:
 5. Use HTTPS in production
 6. Configure proper CORS settings
 
-### Docker Production
+### Docker Production (NOT TESTED)
 ```bash
 # Build production image
 docker build -t your-app:latest .
@@ -617,6 +532,8 @@ docker build -t your-app:latest .
 # Run with production settings
 docker run -e DJANGO_SETTINGS_MODULE=core.settings.production your-app:latest
 ```
+
+**Note**: Production deployment has not been tested. This is a development-ready project that needs production configuration.
 
 ## 🔧 Troubleshooting
 
@@ -632,11 +549,6 @@ docker-compose logs db
 
 # Test database connection
 docker-compose exec web python manage.py dbshell
-
-# Reset database (WARNING: This will delete all data)
-docker-compose down -v
-docker-compose up -d
-docker-compose exec web python manage.py migrate
 ```
 
 #### **Redis Connection Issues**
@@ -649,9 +561,6 @@ docker-compose logs redis
 
 # Test Redis connection
 docker-compose exec redis redis-cli ping
-
-# Clear Redis cache
-docker-compose exec redis redis-cli FLUSHALL
 ```
 
 #### **Django Application Issues**
@@ -661,12 +570,6 @@ docker-compose logs web
 
 # Check Django status
 docker-compose exec web python manage.py check
-
-# Collect static files
-docker-compose exec web python manage.py collectstatic --noinput
-
-# Clear Django cache
-docker-compose exec web python manage.py clearcache
 ```
 
 #### **Port Conflicts**
@@ -675,72 +578,20 @@ docker-compose exec web python manage.py clearcache
 lsof -i :8000  # macOS/Linux
 netstat -an | findstr :8000  # Windows
 
-# Kill process using port
-kill -9 <PID>
-
 # Or use different port
 docker-compose up -d -p 8001:8000
 ```
 
-#### **Permission Issues**
-```bash
-# Fix file permissions
-chmod +x run_tests.sh
-
-# Fix Docker permissions (Linux)
-sudo chown $USER:$USER . -R
-```
-
-#### **Memory Issues**
+#### **Basic Docker Monitoring**
 ```bash
 # Check Docker memory usage
 docker stats
 
-# Clean up Docker
-docker system prune -a
-docker volume prune
-```
-
-#### **Test Failures**
-```bash
-# Run tests with verbose output
-pytest -v -s
-
-# Run specific failing test
-pytest api/tests.py::TestClassName::test_method_name -v -s
-
-# Check test database
-docker-compose exec db psql -U test_user -d test_db -c "\dt"
-```
-
-### Performance Optimization
-
-#### **Database Optimization**
-```bash
-# Check slow queries
-docker-compose exec db psql -U test_user -d test_db -c "SELECT * FROM pg_stat_statements ORDER BY mean_time DESC LIMIT 10;"
-
-# Analyze table statistics
-docker-compose exec web python manage.py dbshell -c "ANALYZE;"
-```
-
-#### **Redis Optimization**
-```bash
-# Check Redis memory usage
-docker-compose exec redis redis-cli info memory
-
-# Monitor Redis operations
-docker-compose exec redis redis-cli monitor
+# Monitor specific service
+docker stats web redis db
 ```
 
 ### Debug Mode
-
-#### **Enable Django Debug**
-```env
-# In .env file
-DEBUG=True
-LOG_LEVEL=DEBUG
-```
 
 #### **Check Logs in Real-time**
 ```bash
@@ -753,6 +604,8 @@ docker-compose logs -f redis
 docker-compose logs -f db
 ```
 
+**Note**: Advanced troubleshooting commands (performance optimization, advanced database operations) have not been tested and may require additional packages or configurations.
+
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -763,13 +616,16 @@ docker-compose logs -f db
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+**Note**: This project currently doesn't have a license file. If you want to add one, you can:
+- Create a `LICENSE` file with MIT, Apache 2.0, or GPL license
+- Or remove this section entirely
 
 ## 🙏 Acknowledgments
 
 - Django REST Framework team for the excellent framework
 - Redis team for the powerful caching solution
 - The Django community for best practices and patterns
+- **Note**: This project demonstrates learned concepts and best practices from the Django ecosystem
 
 ## 📞 Support
 
@@ -778,3 +634,5 @@ For questions or support, please open an issue in the GitHub repository.
 ---
 
 **Built with ❤️ using Django and modern Python practices**
+
+**Project Status**: Development-ready with comprehensive testing. Production deployment requires additional configuration and testing.
