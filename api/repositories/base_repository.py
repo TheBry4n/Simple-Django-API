@@ -21,7 +21,7 @@ class BaseRepository(Generic[T]):
     def delete(self, instance: T) -> None:
         instance.delete()
 
-    def get_by_id(self, id: int) -> Optional[T]:
+    def get_by_id(self, id: str) -> Optional[T]:
         try:
             return self.model.objects.get(id=id)
         except self.model.DoesNotExist:

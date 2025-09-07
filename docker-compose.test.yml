@@ -5,17 +5,17 @@ services:
     image: postgres:15
     container_name: postgres_test
     environment:
-      POSTGRES_DB: ${DB_NAME_TEST}
-      POSTGRES_USER: ${DB_USER_TEST}
-      POSTGRES_PASSWORD: ${DB_PASSWORD_TEST}
+      POSTGRES_DB: test_db
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
     ports:
-      - "${DB_PORT_TEST}:5432"  # Porta diversa per non confliggere
+      - "5433:5432"  # Porta diversa per non confliggere
     volumes:
       - postgres_test_data:/var/lib/postgresql/data
     networks:
       - test_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER_TEST} -d ${DB_NAME_TEST}"]
+      test: ["CMD-SHELL", "pg_isready -U test_user -d test_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -24,7 +24,7 @@ services:
     image: redis:7-alpine
     container_name: redis_test
     ports:
-      - "${REDIS_PORT_TEST}:6379"  # Porta diversa per non confliggere
+      - "6380:6379"  # Porta diversa per non confliggere
     volumes:
       - redis_test_data:/data
     networks:
