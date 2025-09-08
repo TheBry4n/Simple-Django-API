@@ -44,7 +44,7 @@ class UserService:
             "access_token" : access_token,
             "refresh_token" : refresh_token,
             "user" : {
-                "id" : str(user.id),  # Converti UUID in stringa
+                "id" : str(user.id),  # Convert UUID to string
                 "username" : user.username,
                 "email" : user.email,
             }

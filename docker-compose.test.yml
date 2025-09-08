@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: test_user
       POSTGRES_PASSWORD: test_password
     ports:
-      - "5433:5432"  # Porta diversa per non confliggere
+      - "5433:5432"  # Different port to avoid conflicts
     volumes:
       - postgres_test_data:/var/lib/postgresql/data
     networks:
@@ -24,7 +24,7 @@ services:
     image: redis:7-alpine
     container_name: redis_test
     ports:
-      - "6380:6379"  # Porta diversa per non confliggere
+      - "6380:6379"  # Different port to avoid conflicts
     volumes:
       - redis_test_data:/data
     networks:

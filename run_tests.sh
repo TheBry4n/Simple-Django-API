@@ -142,7 +142,7 @@ main() {
     echo "🧪 ========================================"
     echo ""
     
-    # 1. Verifica prerequisiti
+    # 1. Check prerequisites
     log_step "Checking prerequisites..."
     
     if ! command -v docker &> /dev/null; then
@@ -162,12 +162,12 @@ main() {
     
     log_success "Prerequisites verified"
     
-    # 2. Ferma container esistenti
+    # 2. Stop existing containers
     log_step "Stopping existing containers..."
     docker-compose -f $COMPOSE_FILE down -v --remove-orphans 2>/dev/null
     log_success "Existing containers stopped"
     
-    # 3. Avvia container di test
+    # 3. Start test containers
     log_step "Starting test containers..."
     docker-compose -f $COMPOSE_FILE up -d
     
@@ -178,27 +178,27 @@ main() {
     
     log_success "Containers started"
     
-    # 4. Mostra stato container
+    # 4. Show container status
     show_container_status
     
-    # 5. Aspetta che i servizi siano pronti
+    # 5. Wait for services to be ready
     wait_for_services
     
-    # 6. Mostra log container
+    # 6. Show container logs
     show_container_logs
     
-    # 7. Esegui test
+    # 7. Run tests
     run_tests
     TEST_RESULT=$?
     
-    # 8. Mostra statistiche
+    # 8. Show statistics
     show_stats
     
-    # 9. Cleanup finale
+    # 9. Final cleanup
     log_step "Final cleanup..."
     cleanup
     
-    # 10. Risultato finale
+    # 10. Final result
     if [ $TEST_RESULT -eq 0 ]; then
         echo ""
         echo "🎉 ========================================"
@@ -215,5 +215,5 @@ main() {
     fi
 }
 
-# Esegui script
+# Execute script
 main "$@"
