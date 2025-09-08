@@ -1,12 +1,13 @@
 from django.db.models import QuerySet
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from rest_framework_simplejwt.exceptions import TokenError
+from datetime import datetime
 import logging
 
 from api.repositories import UserRepository
 from ..models import User
 from .redis_service import RedisService
-from api.utils import Result
+from api.utils import Result, PasswordUtils
 
 logger = logging.getLogger(__name__)
 
@@ -113,8 +114,17 @@ class UserService:
         except Exception as e:
            return Result.error(f"Failed to logout user: {str(e)}")
 
-    def get_user_session(self, user_id: str) -> Result[dict] | Result[str]:
-        """
-        Get user session from Redis
-        """
-        return self.redis_service.get_user_session(str(user_id))
+    def update_user(self, data: dict, user_id: str) -> Result[User] | Result[str]:
+        user = self.repo.get_by_id(user_id)
+        if not user:
+            return Result.error("User not found")
+
+        user.username = data.get("username", user.username)
+        user.email = data.get("email", user.email)
+        if data.get("password"):
+            user.password = PasswordUtils.hash_password(data.get("password"))
+
+
+        user.updated_at = datetime.now()
+        user.save()
+        return Result.success(user)

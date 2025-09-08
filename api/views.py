@@ -5,7 +5,7 @@ from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 
 from api.decorators import service_injector, serializer_injector, extract_refresh_token, route_protector
 from api.services import UserService
-from api.serializers import UserSerializer, LoginSerializer
+from api.serializers import UserSerializer, LoginSerializer, UpdateSerializer
 
 @api_view(["GET"])
 @service_injector(UserService)
@@ -88,6 +88,20 @@ def logout(request, service, access_token, refresh_token):
     
     return Response({"message": "Logout successful"}, status=status.HTTP_200_OK)
 
+@api_view(["PUT"])
+@service_injector(UserService)
+@route_protector(True)
+@serializer_injector(UpdateSerializer, instance= lambda request, service, access_token : service.repo.get_by_id(access_token.payload.get("user_id")))
+def update_user(request, service, access_token, serializer):
+    validated_data = serializer.validated_data
+    user_id = access_token.payload.get("user_id")
+
+    result = service.update_user(validated_data, user_id)
+    if not result.is_success:
+        return Response(result.get_error(), status=status.HTTP_400_BAD_REQUEST)
+    
+    return Response({"message": "User updated successfully"}, status=status.HTTP_200_OK)
 
 
-__all__ = ["user_list", "account_create", "login", "refresh_token", "logout"]
+
+__all__ = ["user_list", "account_create", "login", "refresh_token", "logout", "update_user"]

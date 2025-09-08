@@ -179,4 +179,56 @@ class UserAPITest(DockerTestDatabaseTestCase, APITestCase):
         logout_response = self.client.post(logout_url, format="json", HTTP_X_REFRESH_TOKEN="")
         self.assertEqual(logout_response.status_code, status.HTTP_400_BAD_REQUEST)
     
+    def test_update_user(self):
+        """Test updating a user."""
 
+        url_create = reverse("account-create")
+        create_response = self.client.post(url_create, self.create_user_data, format="json")
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+
+        url_login = reverse("login")
+        login_response = self.client.post(url_login, self.login_user_data, format="json")
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+
+        access_token = login_response.data['access_token']
+
+        update_url = reverse("update-user")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+        update_data = {
+            "username": "testuser2",
+            "email": "test2@example.com",
+            "password": "StrongPassword123!?",
+            "confirm_password": "StrongPassword123!?"
+        }
+        update_response = self.client.put(update_url, update_data, format="json")
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+
+        # Test without password
+        update_data_without_password = {
+            "username": "testuser3",
+            "email": "test3@example.com",
+        }
+        update_response = self.client.put(update_url, update_data_without_password, format="json")
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+
+        # Test without confirm password
+        update_data_without_confirm_password = {
+            "username": "testuser4",
+            "email": "test4@example.com",
+            "password": "StrongPassword123!"
+        }
+        update_response = self.client.put(update_url, update_data_without_confirm_password, format="json")
+        self.assertEqual(update_response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        # Test with same data
+        update_response = self.client.put(update_url, update_data_without_password, format="json")
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+
+        # Test with confirm password but without password
+        update_data_with_confirm_password_without_password = {
+            "username": "testuser5",
+            "email": "test5@example.com",
+            "confirm_password": "StrongPassword123!?"
+        }
+        update_response = self.client.put(update_url, update_data_with_confirm_password_without_password, format="json")
+        self.assertEqual(update_response.status_code, status.HTTP_400_BAD_REQUEST)
