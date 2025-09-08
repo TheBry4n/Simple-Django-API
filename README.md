@@ -6,7 +6,8 @@ A modern, production-ready Django REST API featuring JWT authentication, Redis c
 
 ### Authentication & Security
 - **JWT Token-based Authentication** with access and refresh tokens
-- **Token Blacklisting** for secure logout and token revocation
+- **Token Blacklisting** for secure logout and token revocation (refresh tokens only)
+- **Custom Header Support** for refresh tokens (`X-Refresh-Token`)
 - **Password Validation** with Django's built-in validators
 - **Secure Token Storage** in Redis with automatic expiration
 
@@ -18,7 +19,8 @@ A modern, production-ready Django REST API featuring JWT authentication, Redis c
 - **Clean Architecture** principles implementation
 
 ### Caching & Performance
-- **Redis Integration** for session and token management
+- **Redis Integration** for token blacklisting and session management
+- **JTI-based Token Blacklisting** for efficient refresh token invalidation
 - **User Session Caching** with configurable TTL
 - **Token Storage** with automatic cleanup
 - **Basic Connection Pooling** for database connections
@@ -159,7 +161,7 @@ docker-compose -f docker-compose.test.yml logs web
 
 #### 1. **Test User Registration**
 ```bash
-curl -X POST http://localhost:8000/api/account/create/ \
+curl -X POST http://localhost:8000/api/v1/user/create \
   -H "Content-Type: application/json" \
   -d '{
     "username": "testuser",
@@ -180,10 +182,10 @@ curl -X POST http://localhost:8000/api/account/create/ \
 
 #### 2. **Test User Login**
 ```bash
-curl -X POST http://localhost:8000/api/login/ \
+curl -X POST http://localhost:8000/api/v1/user/login \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "testuser",
+    "email": "test@example.com",
     "password": "securepassword123"
   }'
 ```
@@ -202,24 +204,71 @@ curl -X POST http://localhost:8000/api/login/ \
 }
 ```
 
-#### 3. **Test Protected Endpoint (User List)**
+#### 3. **Test Public Endpoint (User List)**
 ```bash
-# First get the access token from login
-ACCESS_TOKEN="your_access_token_here"
-
-curl -X GET http://localhost:8000/api/users/ \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
+# No authentication required
+curl -X GET http://localhost:8000/api/v1/users
 ```
 
 #### 4. **Test Token Refresh**
 ```bash
 REFRESH_TOKEN="your_refresh_token_here"
 
-curl -X POST http://localhost:8000/api/refresh-token/ \
+curl -X POST http://localhost:8000/api/v1/user/refresh \
   -H "Content-Type: application/json" \
+  -H "X-Refresh-Token: $REFRESH_TOKEN"
+```
+
+#### 5. **Test User Logout**
+```bash
+ACCESS_TOKEN="your_access_token_here"
+REFRESH_TOKEN="your_refresh_token_here"
+
+curl -X POST http://localhost:8000/api/v1/user/logout \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "X-Refresh-Token: $REFRESH_TOKEN" \
   -d '{
     "refresh_token": "'$REFRESH_TOKEN'"
   }'
+```
+
+#### 6. **Test User Update**
+```bash
+ACCESS_TOKEN="your_access_token_here"
+
+# Update username and email
+curl -X PUT http://localhost:8000/api/v1/user/update \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{
+    "username": "newusername",
+    "email": "newemail@example.com"
+  }'
+
+# Update password (requires confirm_password)
+curl -X PUT http://localhost:8000/api/v1/user/update \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{
+    "password": "NewStrongPassword123!",
+    "confirm_password": "NewStrongPassword123!"
+  }'
+
+# Partial update (only username)
+curl -X PUT http://localhost:8000/api/v1/user/update \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{
+    "username": "updatedusername"
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "message": "User updated successfully"
+}
 ```
 
 **Note**: These curl commands are theoretically correct based on the API implementation, but manual testing with curl has not been performed. The automated tests confirm the API endpoints work correctly.
@@ -327,21 +376,24 @@ docker stats web redis db
 **Note**: Basic Docker monitoring commands have been tested. Advanced Docker operations (cleanup, optimization) have not been tested.
 
 **Test Results Summary:**
-- ✅ **Automated Tests**: User registration, login, token refresh (TESTED AND WORKING)
+- ✅ **Automated Tests**: User registration, login, token refresh, logout, user update (TESTED AND WORKING)
 - ✅ **Docker Test Environment**: Isolated testing with separate ports (TESTED AND WORKING)
+- ✅ **Token Management**: Access token validation, refresh token blacklisting (TESTED AND WORKING)
+- ✅ **Custom Headers**: X-Refresh-Token header support (TESTED AND WORKING)
+- ✅ **User Update Validation**: Partial updates, password confirmation, field validation (TESTED AND WORKING)
 - ✅ **Basic Redis Operations**: Connection and basic commands (TESTED)
 - ✅ **Basic Database Operations**: Connection and table queries (TESTED)
-- ✅ **Manual API Testing**: Registration and login endpoints (THEORETICALLY WORKING - based on automated tests)
+- ✅ **Manual API Testing**: All endpoints including logout and user update (THEORETICALLY WORKING - based on automated tests)
 - ⚠️ **Advanced Testing**: Performance testing, security testing, coverage reports (NOT TESTED)
 - ⚠️ **Production Features**: HTTPS, advanced security, monitoring (NOT TESTED)
 
 ## 📚 API Endpoints
 
-### Authentication Endpoints (IMPLEMENTED AND TESTED)
+### Authentication & User Management Endpoints (IMPLEMENTED AND TESTED)
 
 #### User Registration
 ```http
-POST /api/account/create/
+POST /api/v1/user/create
 Content-Type: application/json
 
 {
@@ -353,11 +405,11 @@ Content-Type: application/json
 
 #### User Login
 ```http
-POST /api/login/
+POST /api/v1/user/login
 Content-Type: application/json
 
 {
-    "username": "testuser",
+    "email": "test@example.com",
     "password": "securepassword123"
 }
 ```
@@ -378,18 +430,75 @@ Content-Type: application/json
 
 #### Token Refresh
 ```http
-POST /api/refresh-token/
+POST /api/v1/user/refresh
 Content-Type: application/json
+X-Refresh-Token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+```
+
+#### User Logout
+```http
+POST /api/v1/user/logout
+Content-Type: application/json
+Authorization: Bearer <access_token>
+X-Refresh-Token: <refresh_token>
 
 {
     "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
 }
 ```
 
-#### User List (Protected)
+**Note**: The logout endpoint requires both access token in Authorization header and refresh token in both X-Refresh-Token header and request body.
+
+#### User List (Public - No Authentication Required)
 ```http
-GET /api/users/
+GET /api/v1/users
+```
+
+#### User Update (Protected - Requires Authentication)
+```http
+PUT /api/v1/user/update
+Content-Type: application/json
 Authorization: Bearer <access_token>
+
+{
+    "username": "newusername",
+    "email": "newemail@example.com",
+    "password": "newpassword123",
+    "confirm_password": "newpassword123"
+}
+```
+
+**Response:**
+```json
+{
+    "message": "User updated successfully"
+}
+```
+
+**Validation Rules:**
+- All fields are optional for partial updates
+- If `password` is provided, `confirm_password` is required and must match
+- Username must be 3-30 characters, alphanumeric, and unique
+- Email must be valid format and unique
+- Password must meet strength requirements
+- Users can keep the same values (no forced changes)
+
+**Error Responses:**
+```json
+// Missing confirm_password when password provided
+{
+    "confirm_password": ["Confirm password is required when password is provided"]
+}
+
+// Password mismatch
+{
+    "non_field_errors": ["Passwords do not match"]
+}
+
+// Username validation errors
+{
+    "username": ["Username must be at least 3 characters long"]
+}
 ```
 
 **Note**: All endpoints above are implemented, tested, and working. The API uses UUIDs for user IDs, not integers.
@@ -486,6 +595,25 @@ def account_create(request, service, serializer):
     # Dependencies are automatically injected
 ```
 
+### Update Serializer with Instance Support
+The serializer injector decorator supports instance parameter for update operations:
+
+```python
+@serializer_injector(UpdateSerializer, instance=lambda request, service, access_token: service.repo.get_by_id(access_token.payload.get("user_id")))
+def update_user(request, service, access_token, serializer):
+    # Serializer has access to self.instance for validation
+```
+
+### Token Management
+Custom decorators for JWT token handling:
+
+```python
+@route_protector(pass_token=True)  # Validates and passes access token
+@extract_refresh_token()           # Extracts refresh token from X-Refresh-Token header
+def logout(request, service, access_token, refresh_token):
+    # Both tokens are automatically validated and injected
+```
+
 ### Result Pattern
 Consistent error handling across the application:
 
@@ -502,17 +630,20 @@ class Result:
 ## 🔒 Security Features
 
 - **JWT Token Expiration**: Configurable token lifetimes
-- **Token Blacklisting**: Secure logout and token revocation
+- **Token Blacklisting**: Secure logout and token revocation (refresh tokens only)
+- **JTI-based Blacklisting**: Efficient token invalidation using JWT ID
+- **Custom Header Authentication**: Refresh tokens via `X-Refresh-Token` header
 - **Password Validation**: Django's built-in security validators
 - **Basic Redis Security**: Redis instance configuration
 - **Development Security**: Basic security measures implemented
 
 ## 📊 Performance Features
 
-- **Redis Caching**: User sessions and token storage
+- **Redis Caching**: User sessions and token blacklisting
+- **JTI-based Token Management**: Efficient refresh token invalidation
 - **Basic Connection Pooling**: Database connection optimization
 - **Repository Pattern**: Clean data access abstraction
-- **Token Management**: Efficient JWT token handling
+- **Token Management**: Efficient JWT token handling with custom decorators
 
 ## 🚀 Deployment
 

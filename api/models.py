@@ -1,10 +1,11 @@
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 import uuid
 
-class User(models.Model):
+class User(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(max_length=100, unique=True)
-    username = models.CharField(max_length=100)
+    username = models.CharField(max_length=100, unique=True)
     password = models.CharField(max_length=100)
 
     # Boolean fields

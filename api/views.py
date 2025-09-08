@@ -1,10 +1,11 @@
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 
-from api.decorators import service_injector, serializer_injector
+from api.decorators import service_injector, serializer_injector, extract_refresh_token, route_protector
 from api.services import UserService
-from api.serializers import UserSerializer, LoginSerializer
+from api.serializers import UserSerializer, LoginSerializer, UpdateSerializer
 
 @api_view(["GET"])
 @service_injector(UserService)
@@ -52,10 +53,9 @@ def login(request, service, serializer):
 
 @api_view(["POST"])
 @service_injector(UserService)
-def refresh_token(request, service):
-    refresh_token = request.data.get("refresh_token")
-    if not refresh_token:
-        return Response({"message": "Refresh token is required"}, status=status.HTTP_400_BAD_REQUEST)
+@route_protector()
+@extract_refresh_token()
+def refresh_token(request, service, refresh_token):
     
     result = service.refresh_token(refresh_token)
     if not result.is_success:
@@ -73,7 +73,35 @@ def refresh_token(request, service):
         "status" : status.HTTP_200_OK,
     })
 
+@api_view(["POST"])
+@service_injector(UserService)
+@route_protector(True)
+@extract_refresh_token()
+def logout(request, service, access_token, refresh_token):
+
+    result = service.logout(refresh_token, access_token)
+    if not result.is_success:
+        return Response(
+            {"message": result.get_error()}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    return Response({"message": "Logout successful"}, status=status.HTTP_200_OK)
+
+@api_view(["PUT"])
+@service_injector(UserService)
+@route_protector(True)
+@serializer_injector(UpdateSerializer, instance= lambda request, service, access_token : service.repo.get_by_id(access_token.payload.get("user_id")))
+def update_user(request, service, access_token, serializer):
+    validated_data = serializer.validated_data
+    user_id = access_token.payload.get("user_id")
+
+    result = service.update_user(validated_data, user_id)
+    if not result.is_success:
+        return Response(result.get_error(), status=status.HTTP_400_BAD_REQUEST)
+    
+    return Response({"message": "User updated successfully"}, status=status.HTTP_200_OK)
 
 
 
-__all__ = ["user_list", "account_create", "login", "refresh_token"]
+__all__ = ["user_list", "account_create", "login", "refresh_token", "logout", "update_user"]

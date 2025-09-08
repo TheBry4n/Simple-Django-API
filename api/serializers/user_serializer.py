@@ -21,4 +21,23 @@ class UserSerializer(serializers.ModelSerializer):
         if not is_strong:
             raise serializers.ValidationError(errors)
         return value
+    
+    def validate_username(self, value: str) -> str:
+
+        if len(value) < 3:
+            raise serializers.ValidationError("Username must be at least 3 characters long")
+
+        if len(value) > 30:
+            raise serializers.ValidationError("Username must be less than 30 characters long")
+
+        if not value.isalnum():
+            raise serializers.ValidationError("Username must be alphanumeric")
+
+        if value.lower() == "admin":
+            raise serializers.ValidationError("Username cannot be 'admin'")
+
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Username already exists")
+            
+        return value
    
