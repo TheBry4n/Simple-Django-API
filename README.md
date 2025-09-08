@@ -233,6 +233,44 @@ curl -X POST http://localhost:8000/api/v1/user/logout \
   }'
 ```
 
+#### 6. **Test User Update**
+```bash
+ACCESS_TOKEN="your_access_token_here"
+
+# Update username and email
+curl -X PUT http://localhost:8000/api/v1/user/update \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{
+    "username": "newusername",
+    "email": "newemail@example.com"
+  }'
+
+# Update password (requires confirm_password)
+curl -X PUT http://localhost:8000/api/v1/user/update \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{
+    "password": "NewStrongPassword123!",
+    "confirm_password": "NewStrongPassword123!"
+  }'
+
+# Partial update (only username)
+curl -X PUT http://localhost:8000/api/v1/user/update \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{
+    "username": "updatedusername"
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "message": "User updated successfully"
+}
+```
+
 **Note**: These curl commands are theoretically correct based on the API implementation, but manual testing with curl has not been performed. The automated tests confirm the API endpoints work correctly.
 
 ### 🧪 **Testing with Postman/Insomnia (THEORETICALLY WORKING)**
@@ -338,19 +376,20 @@ docker stats web redis db
 **Note**: Basic Docker monitoring commands have been tested. Advanced Docker operations (cleanup, optimization) have not been tested.
 
 **Test Results Summary:**
-- ✅ **Automated Tests**: User registration, login, token refresh, logout (TESTED AND WORKING)
+- ✅ **Automated Tests**: User registration, login, token refresh, logout, user update (TESTED AND WORKING)
 - ✅ **Docker Test Environment**: Isolated testing with separate ports (TESTED AND WORKING)
 - ✅ **Token Management**: Access token validation, refresh token blacklisting (TESTED AND WORKING)
 - ✅ **Custom Headers**: X-Refresh-Token header support (TESTED AND WORKING)
+- ✅ **User Update Validation**: Partial updates, password confirmation, field validation (TESTED AND WORKING)
 - ✅ **Basic Redis Operations**: Connection and basic commands (TESTED)
 - ✅ **Basic Database Operations**: Connection and table queries (TESTED)
-- ✅ **Manual API Testing**: All endpoints including logout (THEORETICALLY WORKING - based on automated tests)
+- ✅ **Manual API Testing**: All endpoints including logout and user update (THEORETICALLY WORKING - based on automated tests)
 - ⚠️ **Advanced Testing**: Performance testing, security testing, coverage reports (NOT TESTED)
 - ⚠️ **Production Features**: HTTPS, advanced security, monitoring (NOT TESTED)
 
 ## 📚 API Endpoints
 
-### Authentication Endpoints (IMPLEMENTED AND TESTED)
+### Authentication & User Management Endpoints (IMPLEMENTED AND TESTED)
 
 #### User Registration
 ```http
@@ -413,6 +452,53 @@ X-Refresh-Token: <refresh_token>
 #### User List (Public - No Authentication Required)
 ```http
 GET /api/v1/users
+```
+
+#### User Update (Protected - Requires Authentication)
+```http
+PUT /api/v1/user/update
+Content-Type: application/json
+Authorization: Bearer <access_token>
+
+{
+    "username": "newusername",
+    "email": "newemail@example.com",
+    "password": "newpassword123",
+    "confirm_password": "newpassword123"
+}
+```
+
+**Response:**
+```json
+{
+    "message": "User updated successfully"
+}
+```
+
+**Validation Rules:**
+- All fields are optional for partial updates
+- If `password` is provided, `confirm_password` is required and must match
+- Username must be 3-30 characters, alphanumeric, and unique
+- Email must be valid format and unique
+- Password must meet strength requirements
+- Users can keep the same values (no forced changes)
+
+**Error Responses:**
+```json
+// Missing confirm_password when password provided
+{
+    "confirm_password": ["Confirm password is required when password is provided"]
+}
+
+// Password mismatch
+{
+    "non_field_errors": ["Passwords do not match"]
+}
+
+// Username validation errors
+{
+    "username": ["Username must be at least 3 characters long"]
+}
 ```
 
 **Note**: All endpoints above are implemented, tested, and working. The API uses UUIDs for user IDs, not integers.
@@ -507,6 +593,15 @@ Custom decorators handle dependency injection:
 @serializer_injector(UserSerializer)
 def account_create(request, service, serializer):
     # Dependencies are automatically injected
+```
+
+### Update Serializer with Instance Support
+The serializer injector decorator supports instance parameter for update operations:
+
+```python
+@serializer_injector(UpdateSerializer, instance=lambda request, service, access_token: service.repo.get_by_id(access_token.payload.get("user_id")))
+def update_user(request, service, access_token, serializer):
+    # Serializer has access to self.instance for validation
 ```
 
 ### Token Management
